@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Control de Gastos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { margin: 0; font-size: 1.8rem; color: #111827; }
+
+        .upload-card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; gap: 10px; align-items: center; margin-bottom: 30px; }
+        input[type="file"] { flex-grow: 1; }
+        
+        button { background-color: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: #1d4ed8; }
+        button:disabled { background-color: #93c5fd; cursor: not-allowed; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 5px; }
+        .stat-label { font-size: 0.9rem; color: #6b7280; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .chart-container, .table-container { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-size: 0.85rem; }
+        td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+        
+        .cat-super { background: #dcfce7; color: #166534; }
+        .cat-trans { background: #dbeafe; color: #1e40af; }
+        .cat-comida { background: #fee2e2; color: #991b1b; }
+        .cat-suscr { background: #f3e8ff; color: #6b21a8; }
+        .cat-varios { background: #f3f4f6; color: #374151; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1> Finance Tracker</h1>
+    </header>
+
+    <div class="upload-card">
+        <input type="file" id="archivoInput" accept=".csv, .pdf">
+        <button id="uploadBtn" onclick="subirArchivo()">Analizar Resumen</button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total Gastado</div>
+            <div class="stat-value" id="totalGasto">$0.00</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Categoría Más Cara</div>
+            <div class="stat-value" id="topCategoria">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Movimientos</div>
+            <div class="stat-value" id="totalTransacciones">0</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="chart-container">
+            <h3>Distribución de Gastos</h3>
+            <div style="position: relative; height: 300px;">
+                <canvas id="miGrafico"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3>Últimos Movimientos</h3>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Descripción</th>
+                            <th>Categoría</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // logica de app
+
+    // subir archivo sin bloque de pdf
+    async function subirArchivo() {
+        const input = document.getElementById('archivoInput');
+        const btn = document.getElementById('uploadBtn');
+
+        if (!input.files[0]) return alert("Por favor selecciona un archivo.");
+        
+        const formData = new FormData();
+        formData.append('archivo', input.files[0]);
+
+        // feedback visual
+        const textoOriginal = btn.innerText;
+        btn.innerText = "⏳ Procesando...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/subir-resumen', { method: 'POST', body: formData });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.mensaje || 'Error desconocido');
+            }
+
+            const datos = await res.json();
+            alert(datos.mensaje);
+            cargarDatos(); 
+        } catch (e) {
+            alert("Error: " + e.message);
+        } finally {
+            btn.innerText = textoOriginal;
+            btn.disabled = false;
+        }
+    }
+
+    // cargar y mostrar datos
+    async function cargarDatos() {
+        try {
+            const res = await fetch('/api/gastos');
+            const gastos = await res.json();
+
+            if (gastos.length === 0) return;
+
+            actualizarTabla(gastos);
+            actualizarEstadisticas(gastos);
+            dibujarGrafico(gastos);
+        } catch (error) {
+            console.error("Error cargando datos:", error);
+        }
+    }
+
+    // llenar la tabla
+    function actualizarTabla(gastos) {
+        const tbody = document.getElementById('tablaBody');
+        tbody.innerHTML = ''; 
+
+        gastos.forEach(g => {
+            let claseColor = 'cat-varios';
+            if(g.categoria === 'Supermercado') claseColor = 'cat-super';
+            if(g.categoria === 'Transporte') claseColor = 'cat-trans';
+            if(g.categoria === 'Comida') claseColor = 'cat-comida';
+            if(g.categoria === 'Suscripciones') claseColor = 'cat-suscr';
+            
+            //formateo la fecha
+            let fechaDisplay = g.fecha;
+
+            const fila = `
+                <tr>
+                    <td>${fechaDisplay || '-'}</td>
+                    <td>${g.descripcion}</td>
+                    <td><span class="badge ${claseColor}">${g.categoria}</span></td>
+                    <td style="font-weight:bold;">$${g.monto.toLocaleString()}</td>
+                </tr>
+            `;
+            tbody.innerHTML += fila;
+        });
+    }
+
+    // calculo totales
+    function actualizarEstadisticas(gastos) {
+        const total = gastos.reduce((sum, g) => sum + g.monto, 0);
+        document.getElementById('totalGasto').innerText = `$${total.toLocaleString()}`;
+        document.getElementById('totalTransacciones').innerText = gastos.length;
+
+        const categorias = {};
+        gastos.forEach(g => {
+            categorias[g.categoria] = (categorias[g.categoria] || 0) + g.monto;
+        });
+        
+        if (Object.keys(categorias).length > 0) {
+            const topCat = Object.keys(categorias).reduce((a, b) => categorias[a] > categorias[b] ? a : b);
+            document.getElementById('topCategoria').innerText = `${topCat} ($${categorias[topCat].toLocaleString()})`;
+        }
+    }
+
+    //dibujo el grafico
+    function dibujarGrafico(gastos) {
+        const categorias = {};
+        gastos.forEach(g => categorias[g.categoria] = (categorias[g.categoria] || 0) + g.monto);
+
+        const ctx = document.getElementById('miGrafico').getContext('2d');
+        if(window.miChart) window.miChart.destroy();
+
+        window.miChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(categorias),
+                datasets: [{
+                    data: Object.values(categorias),
+                    backgroundColor: ['#4ade80', '#60a5fa', '#f87171', '#c084fc', '#9ca3af', '#fcd34d'],
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    }
+
+    cargarDatos();
+</script>
+
+</body>
+</html>
