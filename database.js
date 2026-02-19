@@ -1,49 +1,38 @@
 const { Sequelize, DataTypes } = require('sequelize');
 
-//conectar base de datos
 const sequelize = new Sequelize({
     dialect: 'sqlite',
     storage: './gastos.sqlite',
     logging: false
 });
 
-const Gasto  = sequelize.define('Gasto', {
-    fecha: {
+//tabla de: tus gastos
+const Gasto = sequelize.define('Gasto', {
+    fecha: { type: DataTypes.STRING, allowNull: false },
+    descripcion: { type: DataTypes.STRING, allowNull: false },
+    monto: { type: DataTypes.FLOAT, allowNull: false },
+    categoria: { type: DataTypes.STRING, defaultValue: 'Varios' },
+    tarjeta: { type: DataTypes.STRING }
+})
+
+//tabla diccionario de aprendizaje
+const Regla = sequelize.define ('Regla',{
+    palabraClave:{
         type: DataTypes.STRING,
-        allowNull: false
-    },
-    description:{
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-    monto:{
-        type: DataTypes.FLOAT,
-        allowNull: false
+        allowNull:false,
+        unique:true
     },
     categoria:{
-        type: DataTypes.STRING,
-        defaultValue: 'Sin categoria'
-    },
-    tarjeta:{
-        type: DataTypes.STRING
+        type:DataTypes.STRING,
+        allowNull:false
     }
 });
 
-const iniciarDB = async () => {
+const iniciarDB = async ()=>{
     await sequelize.sync();
-    console.log('Base de datos sincronizada');
-};
+}
 
-module.exports = {Gasto, iniciarDB};
-
-
-
-
-
-
-
-
-
+module.exports = {Gasto, Regla, iniciarDB};
 
 
 

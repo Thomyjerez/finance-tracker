@@ -238,7 +238,7 @@
         </header>
 
         <div class="upload-card">
-            <input type="file" id="archivoInput" accept=".csv, .pdf" style="display: none;">
+            <input type="file" id="archivoInput" accept=".csv, .pdf, .PDF, application/pdf" style="display: none;">
 
             <label for="archivoInput" class="custom-file-upload">
                 📁 Seleccionar Resumen
@@ -299,6 +299,20 @@
     <script>
         let todosLosGastos = []; // variable global para almacenar los gastos
 
+        // mostrar el nombre del archivo seleccionado
+    document.getElementById('archivoInput').addEventListener('change', function() {
+        const nameSpan = document.getElementById('fileName');
+        if (this.files && this.files.length > 0) {
+            nameSpan.textContent = "📄 " + this.files[0].name;
+            nameSpan.style.color = "#10b981"; // verde cuando hay archivo
+            nameSpan.style.fontWeight = "bold";
+        } else {
+            nameSpan.textContent = 'Ningún archivo seleccionado';
+            nameSpan.style.color = "#6b7280";
+            nameSpan.style.fontWeight = "normal";
+        }
+    });
+
         //logica de subida
         async function subirArchivo() {
             const input = document.getElementById('archivoInput');
@@ -314,7 +328,7 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch('/api/gastos');
+                const res = await fetch('/subir-resumen', { method: 'POST', body: formData });
                 todosLosGastos = await res.json();
 
                 if (todosLosGastos.length === 0) return;
@@ -390,13 +404,52 @@
                 <tr>
                     <td>${g.fecha || '-'}</td>
                     <td>${g.descripcion}</td>
-                    <td><span class="badge ${claseColor}">${g.categoria}</span></td>
-                    <td style="font-weight:bold;">$${g.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+                    <td>
+                        <span class="badge ${claseColor}" style="cursor: pointer;" onclick="enseñarApp('${g.descripcion}')" title="Haz clic para enseñarme">
+                            ${g.categoria} ✏️
+                        </span>
+                    </td>
+                    <td style="font-weight:bold;">$${g.monto.toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
                 </tr>
             `;
                 tbody.innerHTML += fila;
             });
         }
+
+        // funcion nueva para enseñarle a la app a hacer preguntas y mandarlas al backend
+        async function enseñarApp(descripcionGasto){
+            const nuevaCategoria = prompt(`¿A qué categoría pertenece el gasto: "${descripcionGasto}"?\n\nEjemplos: Supermercado, Comida, Transporte, Salud, Varios...`);
+            if (!nuevaCategoria) return; //si apreto cancelar no hace nada
+            //extrae la primera palabra util para sugerirla como regla, si el gasto es compra "el trigo panaderia", sugiere "el trigo"
+            const palabras= descripcionGasto.split(' ');
+            const sugerencia = palabras.length > 1 ? palabras[0] + " " + palabras [1] : palabras [0];
+
+            //pregunta la palabra clave para memorizar
+            const palabraClave = prompt(`¿Qué palabra clave debo buscar en el futuro para saber que es '${nuevaCategoria}'?\n\nPuedes dejar la que te sugiero o escribir una mejor:`, sugerencia.toLowerCase())
+
+            if (!palabraClave) return;
+
+            //lo mando al servidor
+            try{
+                const respuesta = await fetch('/api/aprender',{
+                    method: 'POST',
+                    headers:{'Content-Type': 'application/json'},
+                    body:JSON.stringify({
+                        palabraClave: palabraClave,
+                        categoria:nuevaCategoria
+                    })
+                })
+
+                const datos = await respuesta.json();
+                alert(datos.mensaje); // avisa cuantos datos corrigio
+
+                cargarDatos();
+            } catch (error){
+                alert("Hubo un error al intentar aprender")
+                console.error(error);
+            }
+        }
+
 
         function actualizarEstadisticas(gastos) {
             const total = gastos.reduce((sum, g) => sum + g.monto, 0);

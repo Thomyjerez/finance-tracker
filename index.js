@@ -3,19 +3,40 @@ const multer = require('multer');
 const fs = require('fs');
 const csv = require('csv-parser');
 const pdf = require('pdf-parse'); 
-const { Gasto, iniciarDB } = require('./database');
+const { Gasto,Regla, iniciarDB } = require('./database');
+
 
 const app = express();
 const upload = multer({ dest: 'uploads/' }); 
 
 app.use(express.static('public')); 
 app.use(express.json());
+// chismoso global para ver qué llega
+app.use((req, res, next) => {
+    console.log(`Petición recibida: ${req.method} ${req.url}`);
+    next();
+});
+
+//cerebro de aprendizaje
+let diccionario =[]
+
+//funcion para cargar lo que la app aprende desde la bd a su memoria
+async function actualizarCerebro(){
+    diccionario = await Regla.findAll();
+}
 
 // categorizador
 function categorizar(texto) {
     if (!texto) return 'Varios';
     const t = texto.toLowerCase();
-    
+
+    //busca en lo que le enseñe
+    for (let regla of diccionario){
+        if(t.includes(regla.palabraClave)){
+            return regla.categoria;
+        }
+    }
+    //si no lo conoce usa estas reglas basicas
     if (t.includes('super') || t.includes('coto') || t.includes('carrefour') || t.includes('dia') || t.includes('jumbo') || t.includes('vea')) return 'Supermercado';
     if (t.includes('uber') || t.includes('cabify') || t.includes('shell') || t.includes('ypf') || t.includes('axion') || t.includes('puma')) return 'Transporte';
     if (t.includes('netflix') || t.includes('spotify') || t.includes('steam') || t.includes('hbo') || t.includes('disney') || t.includes('apple') || t.includes('prime')) return 'Suscripciones';
@@ -27,129 +48,162 @@ function categorizar(texto) {
     return 'Varios'; 
 }
 
-// logica especial para ejemplode visa macro
-async function procesarPDF(path) {
-    console.log(`📂 Leyendo PDF: ${path}`);
-    const dataBuffer = fs.readFileSync(path);
+//nueva ruta para enseñarle a la app
+app.post('/api/aprender',async (req,res)=>{
+    try{
+        const {palabraClave, categoria} = req.body;
+        const palabraLimpia = palabraClave.toLowerCase().trim()
 
+        if (!palabraLimpia || !categoria){
+            return res.status(400).json({mensaje:'Faltan datos para aprender'})
+        }
+        //guarda la nueva regla
+        await Regla.upsert({palabraClave: palabraLimpia, categoria: categoria})
+        
+        //actualiza la memoria
+        await actualizarCerebro()
+        
+        //buscar gastos viejos y corregirlos 
+        const gastosViejos = await Gasto.findAll()
+        let actualizados = 0
+
+        for ( let g of gastosViejos){
+            if (g.descripcion.toLowerCase().includes(palabraLimpia)&& g.categoria !== categoria ){
+                g.categoria = categoria;
+                await g.save()
+                actualizados++;
+            }
+        }
+            res.json({mensaje:`¡Aprendido! '${palabraClave}' ahora es '${categoria}'. Se corrigieron ${actualizados} gastos del pasado.`});
+    } catch (error){
+        console.error("Error al aprender;", error)
+        res.status(500).json({mensaje:'Error interno al aprender.'})
+    }
+});
+   
+// logica de procesamiento
+async function procesarPDF(path) {
+    console.log(`📄 Leyendo PDF...`);
+    const dataBuffer = fs.readFileSync(path);
     try {
-        const data = await pdf(dataBuffer);
-        const texto = data.text;
+        const data = await Promise.race([
+            pdf(dataBuffer),
+            new Promise((_, r) => setTimeout(() => r(new Error("Timeout")), 5000))
+        ]);
         
-        const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        console.log("✅ ¡Texto extraído!");
+        if (!data || !data.text) return [];
+
+        // limpio formatos raros del banco para evitar que se cuelgue la pagina
+        const textoLimpio = data.text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        const lineas = textoLimpio.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        console.log(`📊 Analizando ${lineas.length} renglones...`);
+        
         const resultados = [];
-        
-        const regexFecha = /^(\d{2}\.\d{2}\.\d{2})$/;
-        
-        const regexMonto = /[0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}/; 
+        // busca numeros seguidos de coma y dos dígitos
+        const regexMonto = /\d+,\d{2}/; 
+        const regexMeses = /Ene|Feb|Mar|Abr|May|Jun|Jul|Ago|Sep|Oct|Nov|Dic/i;
 
         for (let i = 0; i < lineas.length; i++) {
-            const lineaActual = lineas[i];
-
-            if (regexFecha.test(lineaActual)) {
+            const linea = lineas[i];
+            
+            // si la linea tiene plata y no es un resumen de saldos
+            if (regexMonto.test(linea) && !linea.toLowerCase().includes('saldo') && !linea.toLowerCase().includes('minimo')) {
                 
-                const fecha = lineaActual;
-                let descripcion = "";
-                let monto = null;
-                let lineasSaltadas = 0;
+                const coincidencia = linea.match(regexMonto)[0];
+                const montoLimpio = coincidencia.replace(/\./g, '').replace(',', '.');
+                const monto = parseFloat(montoLimpio);
 
-                for (let j = 1; j <= 5; j++) {
-                    const indiceFuturo = i + j;
-                    if (indiceFuturo >= lineas.length) break; 
-
-                    const lineaFutura = lineas[indiceFuturo];
-                        //es dinero ? logica
-                    if (regexMonto.test(lineaFutura)) {
-                        const montoLimpio = lineaFutura.match(regexMonto)[0]
-                                            .replace(/\./g, '') 
-                                            .replace(',', '.'); 
-                        
-                        monto = parseFloat(montoLimpio);
-                        lineasSaltadas = j; 
-                        break; 
-                    } else {
-                        // si no es plata y no es otra fecha, es parte de la DESCRIPCIÓN
-                        if (!regexFecha.test(lineaFutura) && isNaN(lineaFutura)) {
-                            descripcion += lineaFutura + " ";
-                        }
-                    }
-                }
-
-                // guardar monto y fecha si la encuentra
-                if (monto !== null && !isNaN(monto)) {
-                    resultados.push({
-                        fecha: fecha,
-                        descripcion: descripcion.trim() || "Consumo Visa",
-                        monto: monto,
-                        categoria: categorizar(descripcion),
-                        tarjeta: 'Visa Macro'
-                    });
+                if (monto > 0) {
+                    let desc = linea.replace(coincidencia, '').trim();
+                    let fecha = "Sin Fecha";
                     
-                    i += lineasSaltadas; 
+                    // suma la linea anterior para atrapar el nombre del local
+                    if (i > 0) desc = lineas[i-1] + " " + desc;
+                    
+                    // atrapa el mes
+                    const mesMatch = desc.match(regexMeses);
+                    if (mesMatch) fecha = "Mes: " + mesMatch[0];
+
+                    if (desc.length > 3 && !desc.toLowerCase().includes('su pago')) {
+                        resultados.push({
+                            fecha: fecha,
+                            descripcion: desc.substring(0, 45).trim(),
+                            monto: monto,
+                            categoria: categorizar(desc),
+                            tarjeta: 'Banco Macro'
+                        });
+                    }
                 }
             }
         }
-
+        
+        console.log(`✅ Listo. Detectó ${resultados.length} gastos.`);
         return resultados;
 
     } catch (error) {
-        console.error("❌ Error leyendo PDF:", error);
+        console.error("❌ Error analizando PDF:", error.message);
         return [];
     }
 }
-
-// routes
+// rutas de subida
 app.post('/subir-resumen', upload.single('archivo'), async (req, res) => {
+    console.log("📥 Petición recibida: POST /subir-resumen");
     try {
         if (!req.file) return res.status(400).json({ mensaje: 'Falta archivo' });
-
+        
+        await actualizarCerebro();
         const ext = req.file.originalname.toLowerCase();
         let resultados = [];
 
         if (ext.endsWith('.pdf')) {
+            // logica para PDF
             resultados = await procesarPDF(req.file.path);
             
             if (resultados.length > 0) {
-                await Gasto.bulkCreate(resultados);
-                fs.unlinkSync(req.file.path);
-                res.json({ mensaje: `✅ ¡Éxito! Se detectaron ${resultados.length} gastos en el PDF.` });
-            } else {
-                fs.unlinkSync(req.file.path);
-                res.json({ mensaje: '⚠️ Leí el PDF pero no encontré el patrón de gastos. Revisa la consola.' });
+                console.log("💾 Guardando en base de datos...");
+                try {
+                    await Gasto.bulkCreate(resultados);
+                    console.log("✅ ¡Base de datos actualizada!");
+                } catch (err) {
+                    console.error("❌ Error de la BD:", err.message);
+                }
             }
+            
+            try { fs.unlinkSync(req.file.path); } catch(e){} 
+            console.log("🚀 Respondiendo a la página web...");
+            return res.json({ mensaje: `✅ ¡Éxito! Se procesaron ${resultados.length} gastos del PDF.` });
 
         } else if (ext.endsWith('.csv')) {
-            // logica CSV 
-            fs.createReadStream(req.file.path)
-                .pipe(csv())
-                .on('data', (data) => {
-                    const valores = Object.values(data);
-                    const descripcion = data.Descripcion || data.Concepto || valores[1] || 'Gasto';
-                    let montoStr = data.Importe || data.Monto || valores[2] || '0';
-                    montoStr = montoStr.toString().replace('$', '').replace(/\./g, '').replace(',', '.').trim();
-                    const monto = parseFloat(montoStr);
-                    
-                    if (!isNaN(monto) && monto !== 0) {
-                        resultados.push({
-                            fecha: data.Fecha || valores[0],
-                            descripcion,
-                            monto: Math.abs(monto),
-                            categoria: categorizar(descripcion),
-                            tarjeta: 'CSV'
-                        });
-                    }
-                })
-                .on('end', async () => {
+            // logica para CSV
+            fs.createReadStream(req.file.path).pipe(csv()).on('data', (data) => {
+                const valores = Object.values(data);
+                const desc = data.Descripcion || valores[1] || 'Gasto';
+                let montoStr = (data.Importe || valores[2] || '0').toString().replace('$', '').replace(/\./g, '').replace(',', '.').trim();
+                const monto = parseFloat(montoStr);
+                
+                if (!isNaN(monto) && monto !== 0) {
+                    resultados.push({ fecha: data.Fecha || valores[0], descripcion: desc, monto: Math.abs(monto), categoria: categorizar(desc), tarjeta: 'CSV' });
+                }
+            }).on('end', async () => {
+                try {
                     await Gasto.bulkCreate(resultados);
-                    fs.unlinkSync(req.file.path);
-                    res.json({ mensaje: `CSV: Se encontraron ${resultados.length} movimientos.` });
-                });
+                    console.log("✅ ¡Base de datos CSV actualizada!");
+                } catch (err) {
+                    console.error("❌ Error de la BD CSV:", err.message);
+                }
+                try { fs.unlinkSync(req.file.path); } catch(e){}
+                return res.json({ mensaje: `✅ CSV: Se encontraron ${resultados.length} movimientos.` });
+            });
         } else {
-            res.status(400).json({ mensaje: 'Solo se aceptan .csv o .pdf' });
+            // si suben otro formato
+            try { fs.unlinkSync(req.file.path); } catch(e){}
+            return res.status(400).json({ mensaje: 'Formato no soportado.' });
         }
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ mensaje: 'Error interno: ' + error.message });
+        console.error("❌ Error general en la subida:", error.message);
+        if (!res.headersSent) return res.status(500).json({ mensaje: 'Error: ' + error.message });
     }
 });
 
@@ -158,7 +212,21 @@ app.get('/api/gastos', async (req, res) => {
     res.json(gastos);
 });
 
-app.listen(3000, async () => {
-    await iniciarDB();
-    console.log('✅ Servidor listo en: http://localhost:3000');
-});
+async function iniciarServidor() {
+    try {
+        console.log("Iniciando base de datos...");
+        await iniciarDB(); 
+        
+        console.log("Cargando memoria del cerebro...");
+        await actualizarCerebro(); 
+        
+        // solo se abre el puerto si todo lo de arriba funcionó
+        app.listen(3000, () => {
+            console.log('✅ Servidor Inteligente listo en: http://localhost:3000');
+        });
+    } catch (error) {
+        console.error("❌ Error grave al iniciar el servidor:", error);
+    }
+}
+
+iniciarServidor();
