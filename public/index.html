@@ -1,231 +1,449 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Control de Gastos</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary: #2563eb; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        
-        .container { max-width: 1000px; margin: 0 auto; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        h1 { margin: 0; font-size: 1.8rem; color: #111827; }
+        /* estilos */
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+        }
 
-        .upload-card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; gap: 10px; align-items: center; margin-bottom: 30px; }
-        input[type="file"] { flex-grow: 1; }
-        
-        button { background-color: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { background-color: #1d4ed8; }
-        button:disabled { background-color: #93c5fd; cursor: not-allowed; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
 
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; }
-        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-top: 5px; }
-        .stat-label { font-size: 0.9rem; color: #6b7280; }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
 
-        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
 
-        .chart-container, .table-container { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { text-align: left; padding: 12px; border-bottom: 2px solid #e5e7eb; color: #6b7280; font-size: 0.85rem; }
-        td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
-        
-        .cat-super { background: #dcfce7; color: #166534; }
-        .cat-trans { background: #dbeafe; color: #1e40af; }
-        .cat-comida { background: #fee2e2; color: #991b1b; }
-        .cat-suscr { background: #f3e8ff; color: #6b21a8; }
-        .cat-varios { background: #f3f4f6; color: #374151; }
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #111827;
+        }
 
+        /* nuevo boton para subida de archivos */
+        .upload-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .custom-file-upload {
+            border: 2px dashed #cbd5e1;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #475569;
+            font-weight: bold;
+            transition: 0.3s;
+            background-color: #f8fafc;
+            display: inline-block;
+        }
+
+        .custom-file-upload:hover {
+            border-color: var(--primary);
+            background-color: #eff6ff;
+            color: var(--primary);
+        }
+
+        .file-name-display {
+            color: #6b7280;
+            font-size: 0.9rem;
+            flex-grow: 1;
+            font-style: italic;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        button:disabled {
+            background-color: #93c5fd;
+            cursor: not-allowed;
+        }
+
+        /* estilos para el filtro */
+        .filter-section {
+            background: var(--card);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-weight: bold;
+        }
+
+        select {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #cbd5e1;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #475569;
+            outline: none;
+            cursor: pointer;
+            background-color: #f8fafc;
+            transition: 0.3s;
+        }
+
+        select:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-top: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container,
+        .table-container {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.9rem;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .cat-super {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .cat-trans {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .cat-comida {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .cat-suscr {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+
+        .cat-varios {
+            background: #f3f4f6;
+            color: #374151;
+        }
     </style>
 </head>
+
 <body>
+    <div class="container">
+        <header>
+            <h1>💸 Finance Tracker</h1>
+        </header>
 
-<div class="container">
-    <header>
-        <h1> Finance Tracker</h1>
-    </header>
+        <div class="upload-card">
+            <input type="file" id="archivoInput" accept=".csv, .pdf" style="display: none;">
 
-    <div class="upload-card">
-        <input type="file" id="archivoInput" accept=".csv, .pdf">
-        <button id="uploadBtn" onclick="subirArchivo()">Analizar Resumen</button>
-    </div>
+            <label for="archivoInput" class="custom-file-upload">
+                📁 Seleccionar Resumen
+            </label>
 
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">Total Gastado</div>
-            <div class="stat-value" id="totalGasto">$0.00</div>
+            <span id="fileName" class="file-name-display">Ningún archivo seleccionado</span>
+
+            <button id="uploadBtn" onclick="subirArchivo()">Analizar Resumen</button>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Categoría Más Cara</div>
-            <div class="stat-value" id="topCategoria">-</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Movimientos</div>
-            <div class="stat-value" id="totalTransacciones">0</div>
-        </div>
-    </div>
 
-    <div class="dashboard-grid">
-        <div class="chart-container">
-            <h3>Distribución de Gastos</h3>
-            <div style="position: relative; height: 300px;">
-                <canvas id="miGrafico"></canvas>
+        <div class="filter-section">
+            <label for="mesFilter">📅 Filtrar por mes :</label>
+            <select id="mesFilter">
+                <option value="TODOS">Todos los meses</option>
+            </select>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Gastado</div>
+                <div class="stat-value" id="totalGasto">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Categoría Más Cara</div>
+                <div class="stat-value" id="topCategoria">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Movimientos</div>
+                <div class="stat-value" id="totalTransacciones">0</div>
             </div>
         </div>
 
-        <div class="table-container">
-            <h3>Últimos Movimientos</h3>
-            <div style="max-height: 400px; overflow-y: auto;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Descripción</th>
-                            <th>Categoría</th>
-                            <th>Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaBody">
-                        </tbody>
-                </table>
+        <div class="dashboard-grid">
+            <div class="chart-container">
+                <h3>Distribución de Gastos</h3>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="miGrafico"></canvas>
+                </div>
+            </div>
+            <div class="table-container">
+                <h3>Últimos Movimientos</h3>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Categoría</th>
+                                <th>Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
-</div>
+    <script>
+        let todosLosGastos = []; // variable global para almacenar los gastos
 
-<script>
-    // logica de app
+        //logica de subida
+        async function subirArchivo() {
+            const input = document.getElementById('archivoInput');
+            const btn = document.getElementById('uploadBtn');
 
-    // subir archivo sin bloque de pdf
-    async function subirArchivo() {
-        const input = document.getElementById('archivoInput');
-        const btn = document.getElementById('uploadBtn');
+            if (!input.files[0]) return alert("Por favor selecciona un archivo");
 
-        if (!input.files[0]) return alert("Por favor selecciona un archivo.");
-        
-        const formData = new FormData();
-        formData.append('archivo', input.files[0]);
+            const formData = new FormData();
+            formData.append('archivo', input.files[0]);
 
-        // feedback visual
-        const textoOriginal = btn.innerText;
-        btn.innerText = "⏳ Procesando...";
-        btn.disabled = true;
+            const textOriginal = btn.textContent;
+            btn.textContent = "Procesando...";
+            btn.disabled = true;
 
-        try {
-            const res = await fetch('/subir-resumen', { method: 'POST', body: formData });
-            
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.mensaje || 'Error desconocido');
+            try {
+                const res = await fetch('/api/gastos');
+                todosLosGastos = await res.json();
+
+                if (todosLosGastos.length === 0) return;
+
+                configurarFiltroMeses();
+                //renderiza todo
+                renderizarDashboard(todosLosGastos);
+            } catch (error) {
+                console.error("Error cargando datos:", error);
             }
-
-            const datos = await res.json();
-            alert(datos.mensaje);
-            cargarDatos(); 
-        } catch (e) {
-            alert("Error: " + e.message);
-        } finally {
-            btn.innerText = textoOriginal;
-            btn.disabled = false;
         }
-    }
-
-    // cargar y mostrar datos
-    async function cargarDatos() {
-        try {
-            const res = await fetch('/api/gastos');
-            const gastos = await res.json();
-
-            if (gastos.length === 0) return;
-
-            actualizarTabla(gastos);
-            actualizarEstadisticas(gastos);
-            dibujarGrafico(gastos);
-        } catch (error) {
-            console.error("Error cargando datos:", error);
+        //extrae el mes y año de cualquier fecha: 02.01.26 a 02/01/2026
+        function obtenerMesAnio(fechaStr) {
+            if (!fechaStr) return 'Desconocido';
+            const partes = fechaStr.split(/[\/\-\.]/);//separo por barras guion o puntos
+            if (partes.length >= 3) {
+                const mes = partes[1].padStart(2, '0');// para que 1 sea 01
+                let anio = partes[2];
+                if (anio.length === 2) anio = "20" + anio; //convierte 26 a 2026
+                return `${mes}/${anio}`;
+            }
+            return 'Desconocido';
         }
-    }
 
-    // llenar la tabla
-    function actualizarTabla(gastos) {
-        const tbody = document.getElementById('tablaBody');
-        tbody.innerHTML = ''; 
+        function configurarFiltroMeses() {
+            const select = document.getElementById('mesFilter');
+            const mesesUnicos = new Set(); //evito duplicados con esta linea
 
-        gastos.forEach(g => {
-            let claseColor = 'cat-varios';
-            if(g.categoria === 'Supermercado') claseColor = 'cat-super';
-            if(g.categoria === 'Transporte') claseColor = 'cat-trans';
-            if(g.categoria === 'Comida') claseColor = 'cat-comida';
-            if(g.categoria === 'Suscripciones') claseColor = 'cat-suscr';
-            
-            //formateo la fecha
-            let fechaDisplay = g.fecha;
+            todosLosGastos.forEach(g => {
+                const mesAnio = obtenerMesAnio(g.fecha);
+                if (mesAnio !== 'Desconocido') mesesUnicos.add(mesAnio)
+            });
+            select.innerHTML = '<option value="TODOS">Todos los meses</option>'
+            //convierto el set en array, ordeno alfabeticamente
+            array.from(mesesUnicos).sort().reverse().forEach(mes => {
+                const opcion = document.createElement('option')
+                opcion.value = mes
+                opcion.textContent = mes;
+                select.appendChild(opcion);
+            });
+            //menu desplegable
+            select.onchange = () => {
+                const mesSeleccionado = select.value;
+                if (mesSeleccionado === 'TODOS') {
+                    renderizarDashboard(todosLosGastos)
+                } else {
+                    //filtro la lista original dejando los del mes elegido
+                    const filtrados = todosLosGastos.filter(g => obtenerMesAnio(g.fecha) === mesSeleccionado);
+                    renderizarDashboard(filtrados);
+                }
+            };
+        }
 
-            const fila = `
+        //funciones de dibujado
+        //actualiza todo junto 
+        function rederizarDashboard(gastosParaMostrar) {
+            actualizarLaTabla(gastosParaMostrar);
+            dibujarGrafico(gastosParaMostrar);
+        }
+
+        function actualizarTabla(gastos) {
+            const tbody = document.getElementById('tablaBody');
+            tbody.innerHTML = '';
+
+            gastos.forEach(g => {
+                let claseColor = 'cat-varios';
+                if (g.categoria === 'Supermercado') claseColor = 'cat-super';
+                if (g.categoria === 'Transporte') claseColor = 'cat-trans';
+                if (g.categoria === 'Comida') claseColor = 'cat-comida';
+                if (g.categoria === 'Suscripciones') claseColor = 'cat-suscr';
+
+                const fila = `
                 <tr>
-                    <td>${fechaDisplay || '-'}</td>
+                    <td>${g.fecha || '-'}</td>
                     <td>${g.descripcion}</td>
                     <td><span class="badge ${claseColor}">${g.categoria}</span></td>
-                    <td style="font-weight:bold;">$${g.monto.toLocaleString()}</td>
+                    <td style="font-weight:bold;">$${g.monto.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                 </tr>
             `;
-            tbody.innerHTML += fila;
-        });
-    }
-
-    // calculo totales
-    function actualizarEstadisticas(gastos) {
-        const total = gastos.reduce((sum, g) => sum + g.monto, 0);
-        document.getElementById('totalGasto').innerText = `$${total.toLocaleString()}`;
-        document.getElementById('totalTransacciones').innerText = gastos.length;
-
-        const categorias = {};
-        gastos.forEach(g => {
-            categorias[g.categoria] = (categorias[g.categoria] || 0) + g.monto;
-        });
-        
-        if (Object.keys(categorias).length > 0) {
-            const topCat = Object.keys(categorias).reduce((a, b) => categorias[a] > categorias[b] ? a : b);
-            document.getElementById('topCategoria').innerText = `${topCat} ($${categorias[topCat].toLocaleString()})`;
+                tbody.innerHTML += fila;
+            });
         }
-    }
 
-    //dibujo el grafico
-    function dibujarGrafico(gastos) {
-        const categorias = {};
-        gastos.forEach(g => categorias[g.categoria] = (categorias[g.categoria] || 0) + g.monto);
+        function actualizarEstadisticas(gastos) {
+            const total = gastos.reduce((sum, g) => sum + g.monto, 0);
+            document.getElementById('totalGasto').innerText = `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+            document.getElementById('totalTransacciones').innerText = gastos.length;
 
-        const ctx = document.getElementById('miGrafico').getContext('2d');
-        if(window.miChart) window.miChart.destroy();
+            const categorias = {}
+            gastos.forEach(g => {
+                categorias[g.categoria] = (categorias[g.categoria] || 0) + g.monto;
+            })
 
-        window.miChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(categorias),
-                datasets: [{
-                    data: Object.values(categorias),
-                    backgroundColor: ['#4ade80', '#60a5fa', '#f87171', '#c084fc', '#9ca3af', '#fcd34d'],
-                    borderWidth: 1
-                }]
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'right' }
-                }
+            if (Object.keys(categorias).length > 0) {
+                const topCat = Object.keys(categorias).reduce((a, b) => categorias[a] > categorias[b] ? a : b);
+                document.getElementById('topCategoria').innerText = `${topCat} ($${categorias[topCat].toLocaleString('es-AR', { maximumFractionDigits: 0 })})`;
+            } else {
+                document.getElementById('topCategoria').innerText = '-';
             }
-        });
-    }
+        }
 
-    cargarDatos();
-</script>
+        function dibujarGrafico(gastos) {
+            const categorias = {}
+            gastos.forEach(g => categorias[g.categoria] = (categorias[g.categoria] || 0) + g.monto)
 
+            const ctx = document.getElementById('miGrafico').getContext('2d')
+            if (window.miChart) window.miChart.destroy(); //destrye el grafico viejo antes de hacer el nuevo 
+
+            window.miChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categorias),
+                    datasets: [{
+                        data: Object.values(categorias),
+                        backgroundColor: ['#4ade80', '#60a5fa', '#f87171', '#c084fc', '#9ca3af', '#fcd34d'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            })
+        }
+        //iniciar
+        cargarDatos();
+
+    </script>
 </body>
+
 </html>
