@@ -11,7 +11,7 @@ const upload = multer({ dest: 'uploads/' });
 app.use(express.static('public')); 
 app.use(express.json());
 
-// --- CATEGORIZADOR ---
+// categorizador
 function categorizar(texto) {
     if (!texto) return 'Varios';
     const t = texto.toLowerCase();
@@ -27,7 +27,7 @@ function categorizar(texto) {
     return 'Varios'; 
 }
 
-// --- LÓGICA ESPECIAL PARA VISA MACRO (MULTILÍNEA) ---
+// logica especial para ejemplode visa macro
 async function procesarPDF(path) {
     console.log(`📂 Leyendo PDF: ${path}`);
     const dataBuffer = fs.readFileSync(path);
@@ -36,58 +36,46 @@ async function procesarPDF(path) {
         const data = await pdf(dataBuffer);
         const texto = data.text;
         
-        // Dividimos por renglón y limpiamos espacios vacíos
         const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         const resultados = [];
         
-        // Regex estricta para formato: 02.01.26 (dd.mm.yy)
         const regexFecha = /^(\d{2}\.\d{2}\.\d{2})$/;
         
-        // Regex para dinero ARG: 1.000,00 o 10,00 (Puntos para miles, coma para decimal)
-        // Busca un numero que termine obligatoriamente en ,XX
         const regexMonto = /[0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}/; 
 
-        // Recorremos línea por línea
         for (let i = 0; i < lineas.length; i++) {
             const lineaActual = lineas[i];
 
-            // 1. ¿Esta línea es una FECHA? (Ej: 02.01.26)
             if (regexFecha.test(lineaActual)) {
                 
-                // ¡Encontramos el inicio de un gasto!
                 const fecha = lineaActual;
                 let descripcion = "";
                 let monto = null;
                 let lineasSaltadas = 0;
 
-                // 2. Miramos las siguientes 5 líneas buscando el MONTO
                 for (let j = 1; j <= 5; j++) {
                     const indiceFuturo = i + j;
-                    if (indiceFuturo >= lineas.length) break; // Cuidado con el final del archivo
+                    if (indiceFuturo >= lineas.length) break; 
 
                     const lineaFutura = lineas[indiceFuturo];
-
-                    // ¿Es esto dinero? (Ej: 28.600,00)
+                        //es dinero ? logica
                     if (regexMonto.test(lineaFutura)) {
-                        // Limpiamos el monto para guardarlo
-                        // Quitamos puntos de mil y cambiamos coma por punto decimal para JS
                         const montoLimpio = lineaFutura.match(regexMonto)[0]
-                                            .replace(/\./g, '') // Chau puntos de mil
-                                            .replace(',', '.'); // Coma a punto
+                                            .replace(/\./g, '') 
+                                            .replace(',', '.'); 
                         
                         monto = parseFloat(montoLimpio);
-                        lineasSaltadas = j; // Recordamos cuánto avanzamos para no repetir
-                        break; // Dejar de buscar, ya encontramos la plata
+                        lineasSaltadas = j; 
+                        break; 
                     } else {
-                        // Si no es plata y no es otra fecha, es parte de la DESCRIPCIÓN
-                        // Evitamos sumar códigos numéricos cortos (como "454507")
+                        // si no es plata y no es otra fecha, es parte de la DESCRIPCIÓN
                         if (!regexFecha.test(lineaFutura) && isNaN(lineaFutura)) {
                             descripcion += lineaFutura + " ";
                         }
                     }
                 }
 
-                // 3. Si encontramos Fecha y Monto, guardamos
+                // guardar monto y fecha si la encuentra
                 if (monto !== null && !isNaN(monto)) {
                     resultados.push({
                         fecha: fecha,
@@ -97,7 +85,6 @@ async function procesarPDF(path) {
                         tarjeta: 'Visa Macro'
                     });
                     
-                    // Avanzamos el índice principal 'i' para no leer estas líneas de nuevo
                     i += lineasSaltadas; 
                 }
             }
@@ -111,7 +98,7 @@ async function procesarPDF(path) {
     }
 }
 
-// --- RUTAS ---
+// routes
 app.post('/subir-resumen', upload.single('archivo'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ mensaje: 'Falta archivo' });
@@ -132,7 +119,7 @@ app.post('/subir-resumen', upload.single('archivo'), async (req, res) => {
             }
 
         } else if (ext.endsWith('.csv')) {
-            // Lógica CSV (Igual que antes)
+            // logica CSV 
             fs.createReadStream(req.file.path)
                 .pipe(csv())
                 .on('data', (data) => {
