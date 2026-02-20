@@ -49,38 +49,46 @@ function categorizar(texto) {
 }
 
 //nueva ruta para enseñarle a la app
-app.post('/api/aprender',async (req,res)=>{
-    try{
-        const {palabraClave, categoria} = req.body;
-        const palabraLimpia = palabraClave.toLowerCase().trim()
+app.post('/api/aprender', async (req, res) => {
+    console.log(`🧠 Intentando aprender: '${req.body.palabraClave}' -> '${req.body.categoria}'`);
+    try {
+        const { palabraClave, categoria } = req.body;
+        const palabraLimpia = palabraClave.toLowerCase().trim();
 
-        if (!palabraLimpia || !categoria){
-            return res.status(400).json({mensaje:'Faltan datos para aprender'})
+        if (!palabraLimpia || !categoria) {
+            return res.status(400).json({ mensaje: 'Faltan datos para aprender' });
         }
-        //guarda la nueva regla
-        await Regla.upsert({palabraClave: palabraLimpia, categoria: categoria})
-        
-        //actualiza la memoria
-        await actualizarCerebro()
-        
-        //buscar gastos viejos y corregirlos 
-        const gastosViejos = await Gasto.findAll()
-        let actualizados = 0
 
-        for ( let g of gastosViejos){
-            if (g.descripcion.toLowerCase().includes(palabraLimpia)&& g.categoria !== categoria ){
+        let regla = await Regla.findOne({ where: { palabraClave: palabraLimpia } });
+        if (regla) {
+            regla.categoria = categoria;
+            await regla.save();
+        } else {
+            await Regla.create({ palabraClave: palabraLimpia, categoria: categoria });
+        }
+        
+        // actualiza la memoria
+        await actualizarCerebro();
+        
+        // busca gastos viejos y corrige 
+        const gastosViejos = await Gasto.findAll();
+        let actualizados = 0;
+
+        for (let g of gastosViejos) {
+            if (g.descripcion.toLowerCase().includes(palabraLimpia) && g.categoria !== categoria) {
                 g.categoria = categoria;
-                await g.save()
+                await g.save();
                 actualizados++;
             }
         }
-            res.json({mensaje:`¡Aprendido! '${palabraClave}' ahora es '${categoria}'. Se corrigieron ${actualizados} gastos del pasado.`});
-    } catch (error){
-        console.error("Error al aprender;", error)
-        res.status(500).json({mensaje:'Error interno al aprender.'})
+        
+        console.log(`✅ Aprendizaje exitoso. ${actualizados} gastos corregidos.`);
+        res.json({ mensaje: `¡Aprendido! '${palabraClave}' ahora es '${categoria}'. Se corrigieron ${actualizados} gastos del pasado.` });
+    } catch (error) {
+        console.error("❌ Error grave al aprender:", error);
+        res.status(500).json({ mensaje: 'Error interno al aprender.' });
     }
 });
-   
 // logica de procesamiento
 async function procesarPDF(path) {
     console.log(`📄 Leyendo PDF...`);
