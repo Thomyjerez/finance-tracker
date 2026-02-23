@@ -237,4 +237,29 @@ async function iniciarServidor() {
     }
 }
 
+app.post('/api/gastos', async (req,res)=>{
+    try{
+        const { fecha, descripcion, monto, categoria}= req.body;
+
+        if(!descripcion || !monto){
+            return res.status(400).json ({mensaje:'Faltan datos obligatorios'})
+        }
+
+        //crear el gasto directamente en la base de datos
+        await Gasto.create({
+            fecha: fecha || 'Sin fecha',
+            descripcion: descripcion,
+            monto: parseFloat(monto),
+            categoria: categoria || 'Varios',
+            tarjeta: 'Efectivo'
+        });
+
+        console.log("✅ Gasto manual guardado con éxito.");
+        res.json({mensaje: "✅ ¡Gasto en efectivo agregado!"});
+    } catch(error){
+        console.error("❌ Error al guardar gasto manual:", error)
+        res.status(500).json({mensaje:"Error interno al guardar"});
+    }
+})
+
 iniciarServidor();

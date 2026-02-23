@@ -252,6 +252,7 @@
     <div class="container">
         <header>
             <h1>💸 Finance Tracker</h1>
+            <button onclick="abrirModalManual()" style="background-color: #10b981;">➕ Agregar Gasto</button>
         </header>
 
         <div class="upload-card">
@@ -267,9 +268,14 @@
         </div>
 
         <div class="filter-section">
-            <label for="mesFilter">📅 Filtrar por mes :</label>
+            <label for="mesFilter">Mes :</label>
             <select id="mesFilter">
                 <option value="TODOS">Todos los meses</option>
+            </select>
+
+            <label for="catFilter" style="margin-left: 15px;">🏷️ Categoría:</label>
+            <select id="catFilter">
+                <option value="TODAS">Todas las categorías</option>
             </select>
         </div>
 
@@ -335,6 +341,39 @@
         </div>
     </div>
     <div id="toastNotif" class="toast-notif">Mensaje</div>
+    <div id="manualModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>Agregar Gasto en Efectivo</h3>
+            
+            <div class="modal-form-group">
+                <label>Fecha (Ej: 23/02/2026):</label>
+                <input type="text" id="manualFecha" placeholder="DD/MM/AAAA">
+            </div>
+            <div class="modal-form-group">
+                <label>Descripción:</label>
+                <input type="text" id="manualDesc" placeholder="Ej: Kiosco, Verdulería, Taxi...">
+            </div>
+            <div class="modal-form-group">
+                <label>Monto ($):</label>
+                <input type="number" id="manualMonto" placeholder="Ej: 2500">
+            </div>
+            <div class="modal-form-group">
+                <label>Categoría:</label>
+                <select id="manualCat" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+                    <option value="Comida">Comida</option>
+                    <option value="Supermercado">Supermercado</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Salud">Salud</option>
+                    <option value="Varios" selected>Varios</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="cerrarModalManual()">Cancelar</button>
+                <button id="btnGuardarManual" onclick="guardarGastoManual()">Guardar</button>
+            </div>
+        </div>
+    </div>
     <script>
         let todosLosGastos = []; // variable global para almacenar los gastos
 
@@ -413,7 +452,7 @@
             }
 
             // si hay gastos actualizamos los filtros y dibujamos la pantalla
-            configurarFiltroMeses();
+            configurarFiltros()
             renderizarDashboard(todosLosGastos); 
             
         } catch (error) {
@@ -434,33 +473,59 @@
             return 'Desconocido';
         }
 
-        function configurarFiltroMeses() {
-            const select = document.getElementById('mesFilter');
-            const mesesUnicos = new Set(); //evito duplicados con esta linea
+        function configurarFiltros() {
 
-            todosLosGastos.forEach(g => {
+            const selectMes = document.getElementById('mesFilter');
+            const selectCat = document.getElementById('catFilter');
+            const mesesUnicos = new Set();
+            const categoriasUnicas = new Set();
+
+            //logica para recoletar datos de los gastos
+            todosLosGastos.forEach(g =>{
                 const mesAnio = obtenerMesAnio(g.fecha);
-                if (mesAnio !== 'Desconocido') mesesUnicos.add(mesAnio)
+                if(mesAnio !== 'Desconocido') mesesUnicos.add(mesAnio);
+                if(g.categoria) categoriasUnicas.add(g.categoria);
             });
-            select.innerHTML = '<option value="TODOS">Todos los meses</option>'
-            //convierto el set en array, ordeno alfabeticamente
+            //llanar el menu de meses
+
+            selectMes.innerHTML = '<option value="TODOS">Todos los meses</option>';
             Array.from(mesesUnicos).sort().reverse().forEach(mes => {
-                const opcion = document.createElement('option')
-                opcion.value = mes
+                const opcion = document.createElement('option');
+                opcion.value = mes;
                 opcion.textContent = mes;
-                select.appendChild(opcion);
+                selectMes.appendChild(opcion);
             });
-            //menu desplegable
-            select.onchange = () => {
-                const mesSeleccionado = select.value;
-                if (mesSeleccionado === 'TODOS') {
-                    renderizarDashboard(todosLosGastos)
-                } else {
-                    //filtro la lista original dejando los del mes elegido
-                    const filtrados = todosLosGastos.filter(g => obtenerMesAnio(g.fecha) === mesSeleccionado);
-                    renderizarDashboard(filtrados);
+
+            //llenar el menu de categorias
+            selectCat.innerHTML = '<option value="TODAS">Todas las categorías</option>';
+            Array.from(categoriasUnicas).sort().forEach(cat => {
+                const opcion = document.createElement('option');
+                opcion.value = cat;
+                opcion.textContent = cat;
+                selectCat.appendChild(opcion);
+            });
+
+            //el motor para aplicar ambos filtros al mismo tiempo
+            const aplicarFiltros = ()=>{
+                const mesSel = selectMes.value;
+                const catSel = selectCat.value;
+
+                let filtrados = todosLosGastos;
+
+                if(mesSel !== 'TODOS'){
+                    filtrados = filtrados.filter(g => obtenerMesAnio(g.fecha)=== mesSel);
                 }
+
+                if(catSel !== 'TODAS'){
+                    filtrados = filtrados.filter(g=> g.categoria === catSel);
+                }
+                renderizarDashboard(filtrados);
             };
+
+            //reaccion del menu al clik
+            selectMes.onchange = aplicarFiltros;
+            selectCat.onchange = aplicarFiltros;
+
         }
 
         //funciones de dibujado
@@ -599,6 +664,62 @@
                 }
             })
         }
+        // FUNCIONES DE GASTO MANUAL
+        function abrirModalManual() {
+            // autocompleta la fecha de hoy para mayor comodidad
+            const hoy = new Date();
+            const fechaHoy = `${hoy.getDate().toString().padStart(2, '0')}/${(hoy.getMonth() + 1).toString().padStart(2, '0')}/${hoy.getFullYear()}`;
+            
+            document.getElementById('manualFecha').value = fechaHoy;
+            document.getElementById('manualDesc').value = '';
+            document.getElementById('manualMonto').value = '';
+            document.getElementById('manualModal').style.display = 'flex';
+        }
+
+        function cerrarModalManual() {
+            document.getElementById('manualModal').style.display = 'none';
+        }
+
+        async function guardarGastoManual() {
+            const fecha = document.getElementById('manualFecha').value.trim();
+            const descripcion = document.getElementById('manualDesc').value.trim();
+            const monto = document.getElementById('manualMonto').value.trim();
+            const categoria = document.getElementById('manualCat').value;
+
+            if (!descripcion || !monto) {
+                return mostrarAlerta("⚠️ Por favor ingresa una descripción y un monto.", true);
+            }
+
+            const btn = document.getElementById('btnGuardarManual');
+            btn.innerText = "⏳ Guardando...";
+            btn.disabled = true;
+
+            try {
+                const respuesta = await fetch('/api/gastos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fecha, descripcion, monto, categoria })
+                });
+
+                if (!respuesta.ok) throw new Error("Fallo en el servidor al guardar.");
+                
+                const datos = await respuesta.json();
+                mostrarAlerta(datos.mensaje);
+                cerrarModalManual();
+                
+                // recarga la tabla para que aparezca el gasto instantáneamente
+                cargarDatos(); 
+            } catch (error) {
+                mostrarAlerta("❌ Error al guardar el gasto manual.", true);
+                console.error(error);
+            } finally {
+                btn.innerText = "Guardar";
+                btn.disabled = false;
+            }
+        }
+
+
+
         //iniciar
         cargarDatos();
 
