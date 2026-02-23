@@ -50,7 +50,7 @@ function categorizar(texto) {
 
 //nueva ruta para enseñarle a la app
 app.post('/api/aprender', async (req, res) => {
-    console.log(`🧠 Intentando aprender: '${req.body.palabraClave}' -> '${req.body.categoria}'`);
+    console.log(` Intentando aprender: '${req.body.palabraClave}' -> '${req.body.categoria}'`);
     try {
         const { palabraClave, categoria } = req.body;
         const palabraLimpia = palabraClave.toLowerCase().trim();
@@ -82,16 +82,16 @@ app.post('/api/aprender', async (req, res) => {
             }
         }
         
-        console.log(`✅ Aprendizaje exitoso. ${actualizados} gastos corregidos.`);
+        console.log(`Aprendizaje exitoso. ${actualizados} gastos corregidos.`);
         res.json({ mensaje: `¡Aprendido! '${palabraClave}' ahora es '${categoria}'. Se corrigieron ${actualizados} gastos del pasado.` });
     } catch (error) {
-        console.error("❌ Error grave al aprender:", error);
+        console.error(" Error grave al aprender:", error);
         res.status(500).json({ mensaje: 'Error interno al aprender.' });
     }
 });
 // logica de procesamiento
 async function procesarPDF(path) {
-    console.log(`📄 Leyendo PDF...`);
+    console.log(`Leyendo PDF...`);
     const dataBuffer = fs.readFileSync(path);
     try {
         const data = await Promise.race([
@@ -99,14 +99,14 @@ async function procesarPDF(path) {
             new Promise((_, r) => setTimeout(() => r(new Error("Timeout")), 5000))
         ]);
         
-        console.log("✅ ¡Texto extraído!");
+        console.log("¡Texto extraído!");
         if (!data || !data.text) return [];
 
         // limpio formatos raros del banco para evitar que se cuelgue la pagina
         const textoLimpio = data.text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         const lineas = textoLimpio.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         
-        console.log(`📊 Analizando ${lineas.length} renglones...`);
+        console.log(`Analizando ${lineas.length} renglones...`);
         
         const resultados = [];
         // busca numeros seguidos de coma y dos dígitos
@@ -147,11 +147,11 @@ async function procesarPDF(path) {
             }
         }
         
-        console.log(`✅ Listo. Detectó ${resultados.length} gastos.`);
+        console.log(`Listo. Detectó ${resultados.length} gastos.`);
         return resultados;
 
     } catch (error) {
-        console.error("❌ Error analizando PDF:", error.message);
+        console.error(" Error analizando PDF:", error.message);
         return [];
     }
 }
@@ -173,15 +173,15 @@ app.post('/subir-resumen', upload.single('archivo'), async (req, res) => {
                 console.log("💾 Guardando en base de datos...");
                 try {
                     await Gasto.bulkCreate(resultados);
-                    console.log("✅ ¡Base de datos actualizada!");
+                    console.log("¡Base de datos actualizada!");
                 } catch (err) {
-                    console.error("❌ Error de la BD:", err.message);
+                    console.error(" Error de la BD:", err.message);
                 }
             }
             
             try { fs.unlinkSync(req.file.path); } catch(e){} 
             console.log("🚀 Respondiendo a la página web...");
-            return res.json({ mensaje: `✅ ¡Éxito! Se procesaron ${resultados.length} gastos del PDF.` });
+            return res.json({ mensaje: ` ¡Éxito! Se procesaron ${resultados.length} gastos del PDF.` });
 
         } else if (ext.endsWith('.csv')) {
             // logica para CSV
@@ -197,9 +197,9 @@ app.post('/subir-resumen', upload.single('archivo'), async (req, res) => {
             }).on('end', async () => {
                 try {
                     await Gasto.bulkCreate(resultados);
-                    console.log("✅ ¡Base de datos CSV actualizada!");
+                    console.log(" ¡Base de datos CSV actualizada!");
                 } catch (err) {
-                    console.error("❌ Error de la BD CSV:", err.message);
+                    console.error(" Error de la BD CSV:", err.message);
                 }
                 try { fs.unlinkSync(req.file.path); } catch(e){}
                 return res.json({ mensaje: `✅ CSV: Se encontraron ${resultados.length} movimientos.` });
@@ -210,7 +210,7 @@ app.post('/subir-resumen', upload.single('archivo'), async (req, res) => {
             return res.status(400).json({ mensaje: 'Formato no soportado.' });
         }
     } catch (error) {
-        console.error("❌ Error general en la subida:", error.message);
+        console.error("Error general en la subida:", error.message);
         if (!res.headersSent) return res.status(500).json({ mensaje: 'Error: ' + error.message });
     }
 });
@@ -230,10 +230,10 @@ async function iniciarServidor() {
         
         // solo se abre el puerto si todo lo de arriba funcionó
         app.listen(3000, () => {
-            console.log('✅ Servidor Inteligente listo en: http://localhost:3000');
+            console.log(' Servidor Inteligente listo en: http://localhost:3000');
         });
     } catch (error) {
-        console.error("❌ Error grave al iniciar el servidor:", error);
+        console.error(" Error grave al iniciar el servidor:", error);
     }
 }
 
@@ -254,12 +254,30 @@ app.post('/api/gastos', async (req,res)=>{
             tarjeta: 'Efectivo'
         });
 
-        console.log("✅ Gasto manual guardado con éxito.");
-        res.json({mensaje: "✅ ¡Gasto en efectivo agregado!"});
+        console.log("Gasto manual guardado con éxito.");
+        res.json({mensaje: "¡Gasto en efectivo agregado!"});
     } catch(error){
-        console.error("❌ Error al guardar gasto manual:", error)
+        console.error(" Error al guardar gasto manual:", error)
         res.status(500).json({mensaje:"Error interno al guardar"});
     }
 })
+
+// ruta para editar un gasto individual
+app.put('/api/gastos/:id', async (req, res) => {
+    try {
+        const gasto = await Gasto.findOne({ where: { id: req.params.id } });
+        if (!gasto) return res.status(404).json({ mensaje: 'Gasto no encontrado' });
+        
+        gasto.descripcion = req.body.descripcion;
+        gasto.categoria = req.body.categoria;
+        gasto.monto = req.body.monto;
+        await gasto.save();
+        
+        res.json({ mensaje: 'Gasto actualizado correctamente' });
+    } catch (error) {
+        console.error("Error al editar gasto:", error);
+        res.status(500).json({ mensaje: 'Error interno al editar.' });
+    }
+});
 
 iniciarServidor();
