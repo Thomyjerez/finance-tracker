@@ -321,27 +321,6 @@
             </div>
         </div>
     </div>
-    <div id="editModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <h3>Categorizar Gasto</h3>
-            <p id="modalDesc" class="modal-desc-text"></p>
-
-            <div class="modal-form-group">
-                <label>Categoría nueva:</label>
-                <input type="text" id="modalCategoria" list="listaCategorias" placeholder="Elige o escribe una nueva..." style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box;">
-            </div>
-
-            <div class="modal-form-group">
-                <label>Palabra clave para recordar (Ej: netflix):</label>
-                <input type="text" id="modalPalabraClave" placeholder="Palabra clave...">
-            </div>
-
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
-                <button id="btnGuardarModal" onclick="guardarAprendizaje()">Guardar</button>
-            </div>
-        </div>
-    </div>
     <div id="edicionLibreModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <h3>📝 Editar Gasto</h3>
@@ -593,8 +572,6 @@
                     <td>
                         <span class="badge ${claseColor}">${g.categoria}</span>
                         <span style="cursor: pointer; font-size: 1.1em; margin-left: 8px;" onclick="abrirEdicionLibre(${g.id}, '${g.descripcion.replace(/'/g, "\\'")}', '${g.categoria}', ${g.monto})" title="Editar gasto individual">📝</span>
-                        <span style="cursor: pointer; font-size: 1.1em; margin-left: 5px;" onclick="enseñarApp('${g.descripcion.replace(/'/g, "\\'")}')" title="Crear regla automática">🧠</span>
-                    </td>
                     <td style="font-weight:bold;">$${g.monto.toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
                 </tr>
                 `;
@@ -603,64 +580,7 @@
         }
 
         // funcion nueva para enseñarle a la app a hacer preguntas y mandarlas al backend
-        function enseñarApp(descripcionGasto){
-            //muestra el nombre en el modal
-            document.getElementById('modalDesc').innerText=`Gasto: "${descripcionGasto}"`;
-
-            const palabras = descripcionGasto.split(' ');
-            const sugerencia = palabras.length > 1 ? palabras[0] + " " + palabras[1] : palabras[0];
-
-            document.getElementById('modalPalabraClave').value = sugerencia.toLowerCase();
-            document.getElementById('modalCategoria').value = "";
-
-            document.getElementById('editModal').style.display= 'flex';
-        }
-
-        function cerrarModal(){
-            document.getElementById('editModal').style.display = 'none';
-        }
-
-        async function guardarAprendizaje() {
-            const nuevaCategoria = document.getElementById('modalCategoria').value.trim();
-            const palabraClave = document.getElementById('modalPalabraClave').value.trim();
-
-            if (!nuevaCategoria || !palabraClave) {
-                return mostrarAlerta("⚠️ Por favor completa los dos campos.", true);
-            }
-
-            const btn = document.getElementById('btnGuardarModal');
-            btn.innerText = "⏳ Guardando...";
-            btn.disabled = true;
-
-            try {
-                const respuesta = await fetch('/api/aprender', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ palabraClave: palabraClave, categoria: nuevaCategoria })
-                });
-
-                // si el servidor falla (ej: 404 o 500) obliga a que nos diga por que
-                if (!respuesta.ok) {
-                    const errorDelServidor = await respuesta.text();
-                    throw new Error(errorDelServidor);
-                }
-
-                const datos = await respuesta.json();
-                
-                mostrarAlerta(datos.mensaje); 
-                cerrarModal();
-                cargarDatos(); 
-                
-            } catch (error) {
-                mostrarAlerta("❌ Error al guardar. Revisa la consola (F12).", true);
-                console.error("Detalle del error:", error.message);
-            } finally {
-                btn.innerText = "Guardar";
-                btn.disabled = false;
-            }
-        }
-
-
+        
         function actualizarEstadisticas(gastos) {
             const total = gastos.reduce((sum, g) => sum + g.monto, 0);
             document.getElementById('totalGasto').innerText = `$${total.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
