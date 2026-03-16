@@ -1,8 +1,8 @@
 const { Sequelize, DataTypes } = require('sequelize');
 
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    storage: './gastos.sqlite',
+const sequelize = new Sequelize('finance_tracker', 'root', 'Tho0mas120', {
+    host: 'localhost',
+    dialect: 'mysql',
     logging: false
 });
 
