@@ -97,6 +97,86 @@
         .toast-error { border-left: 4px solid #ef4444; } 
         .toast-success { border-left: 4px solid #10b981; }
         
+        /* MENU DESPLEGABLE  */
+        .filter-section { 
+            display: flex; 
+            gap: 25px; 
+            align-items: center; 
+            background: #1e293b; 
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            color: #f8fafc;
+        }
+        
+        .custom-dropdown-container { display: flex; align-items: center; gap: 10px; }
+        .custom-select { position: relative; min-width: 220px; font-family: inherit; }
+        
+        .select-trigger {
+            background-color: #0f172a; 
+            color: #f8fafc;
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .select-trigger:hover { border-color: #6c5ce7; } 
+        .select-trigger::after {
+            content: '▼';
+            font-size: 0.7em;
+            color: #94a3b8;
+            transition: transform 0.3s;
+        }
+        
+        .custom-select.open .select-trigger::after { transform: rotate(180deg); color: #6c5ce7; }
+        .custom-select.open .select-trigger { border-color: #6c5ce7; box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.2); }
+        .custom-options {
+            position: absolute;
+            top: 110%;
+            left: 0;
+            right: 0;
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000; 
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .custom-select.open .custom-options {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .custom-option {
+            display: block;
+            padding: 12px 20px;
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #334155;
+        }
+        .custom-option:last-child { border-bottom: none; }
+        .custom-option:hover { background-color: #334155; color: #fff; }
+        
+        .custom-option.selected { color: #6c5ce7; font-weight: bold; background-color: rgba(108, 92, 231, 0.05); }
+        
+        .custom-options::-webkit-scrollbar { width: 6px; }
+        .custom-options::-webkit-scrollbar-track { background: #1e293b; border-radius: 8px; }
+        .custom-options::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; }
+        .custom-options::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
 
@@ -118,24 +198,31 @@
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button id="uploadBtn" onclick="subirArchivo()">🚀 Analizar Resumen</button>
                 <button onclick="abrirModalManual()" style="background-color: #0ca06f;">➕ Agregar Gasto Manual</button>
+                <button onclick="borrarTodosLosGastos()" style="background-color: #ef4444; color: white;">🗑️ Borrar Todos los Datos</button>
             </div>
         </div>
-
         <div class="filter-section">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <label for="mesFilter">Mes:</label>
-                <select id="mesFilter">
-                    <option value="TODOS">Todos los meses</option>
-                </select>
+            <div class="custom-dropdown-container">
+                <label>Mes:</label>
+                <div class="custom-select" id="box-mes">
+                    <div class="select-trigger" id="trigger-mes">Todos los meses</div>
+                    <div class="custom-options" id="opciones-mes">
+                        <span class="custom-option selected" data-value="TODOS">Todos los meses</span>
+                    </div>
+                </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 10px; margin-left: 15px;">
-                <label for="catFilter">🏷️ Categoría:</label>
-                <select id="catFilter">
-                    <option value="TODAS">Todas las categorías</option>
-                </select>
+            <div class="custom-dropdown-container">
+                <label>🏷️ Categoría:</label>
+                <div class="custom-select" id="box-cat">
+                    <div class="select-trigger" id="trigger-cat">Todas las categorías</div>
+                    <div class="custom-options" id="opciones-cat">
+                        <span class="custom-option selected" data-value="TODAS">Todas las categorías</span>
+                    </div>
+                </div>
             </div>
         </div>
+        
 
         <div class="stats-grid">
             <div class="stat-card">
@@ -315,14 +402,16 @@
                 return;
             }
 
-            // si hay gastos actualizamos los filtros y dibujamos la pantalla
-            configurarFiltros()
-            renderizarDashboard(todosLosGastos); 
-            
-        } catch (error) {
-            console.error("Error cargando datos:", error);
-        }
+           //guardo la lista en la memoria global para que el filtro la encuentre
+           window.gastosGlobales = todosLosGastos;
+           configurarFiltros(todosLosGastos);
+           //dibujamos la pantalla
+           renderizarDashboard(todosLosGastos);
+    } catch (error){
+        console.error("Error cargando los datos:", error)
     }
+}
+
         //extrae el mes y año de cualquier fecha: 02.01.26 a 02/01/2026
         function obtenerMesAnio(fechaStr) {
             if (!fechaStr) return 'Desconocido';
@@ -337,72 +426,132 @@
             return 'Desconocido';
         }
 
-        function configurarFiltros() {
+        // variables globales para saber que estoy filtrando
 
-            const selectMes = document.getElementById('mesFilter');
-            const selectCat = document.getElementById('catFilter');
-            const mesesUnicos = new Set();
-            const categoriasUnicas = new Set();
+        let filtroMes ='TODOS';
+        let filtroCatActual= 'TODAS';
 
-            //logica para recoletar datos de los gastos
-            todosLosGastos.forEach(g =>{
-                const mesAnio = obtenerMesAnio(g.fecha);
-                if(mesAnio !== 'Desconocido') mesesUnicos.add(mesAnio);
-                if(g.categoria) categoriasUnicas.add(g.categoria);
-            });
-            //llanar el menu de meses
+       function configurarFiltros(gastos) {
+            const opcionesMes = document.getElementById('opciones-mes');
+            const opcionesCat = document.getElementById('opciones-cat');
+            const triggerMes = document.getElementById('trigger-mes');
+            const triggerCat = document.getElementById('trigger-cat');
 
-            selectMes.innerHTML = '<option value="TODOS">Todos los meses</option>';
-            Array.from(mesesUnicos).sort().reverse().forEach(mes => {
-                const opcion = document.createElement('option');
-                opcion.value = mes;
-                opcion.textContent = mes;
-                selectMes.appendChild(opcion);
-            });
+            if (!opcionesMes || !opcionesCat) return;
 
-            //llenar el menu de categorias
-            selectCat.innerHTML = '<option value="TODAS">Todas las categorías</option>';
-            Array.from(categoriasUnicas).sort().forEach(cat => {
-                const opcion = document.createElement('option');
-                opcion.value = cat;
-                opcion.textContent = cat;
-                selectCat.appendChild(opcion);
-            });
+            opcionesMes.innerHTML = '<span class="custom-option selected" data-value="TODOS">Todos los meses</span>';
+            opcionesCat.innerHTML = '<span class="custom-option selected" data-value="TODAS">Todas las categorías</span>';
+            triggerMes.innerText = 'Todos los meses';
+            triggerCat.innerText = 'Todas las categorías';
+            filtroMesActual = 'TODOS';
+            filtroCatActual = 'TODAS';
 
-            // actualizamos las listas desplegables de los modales con las categorías nuevas 
-            const datalist = document.getElementById('listaCategorias');
-            if (datalist) {
-                datalist.innerHTML = ''; 
-                Array.from(categoriasUnicas).sort().forEach(cat => {
-                    // agregamos todas las categorías que existan en tu base de datos
-                    datalist.innerHTML += `<option value="${cat}"></option>`; 
-                });
-            }
-
-            //el motor para aplicar ambos filtros al mismo tiempo
-            const aplicarFiltros = ()=>{
-                const mesSel = selectMes.value;
-                const catSel = selectCat.value;
-
-                let filtrados = todosLosGastos;
-
-                if(mesSel !== 'TODOS'){
-                    filtrados = filtrados.filter(g => obtenerMesAnio(g.fecha)=== mesSel);
+            // extraer meses en diferentes formatos
+            const meses = [...new Set(gastos.map(g => {
+                if (!g.fecha) return null;
+                
+                // si la fecha tiene '/' 
+                if (g.fecha.includes('/')) {
+                    const partes = g.fecha.split('/');
+                    return partes.length >= 3 ? partes[1] + '/' + partes[2] : null;
                 }
-
-                if(catSel !== 'TODAS'){
-                    filtrados = filtrados.filter(g=> g.categoria === catSel);
+                
+                // si la fecha tiene '-' formato mysql
+                if (g.fecha.includes('-')) {
+                    const soloFecha = g.fecha.split('T')[0];
+                    const partes = soloFecha.split('-');
+                    return partes.length >= 3 ? partes[1] + '/' + partes[0] : null; // Lo guardamos como MM/YYYY
                 }
-                renderizarDashboard(filtrados);
-            };
+                return null;
+            }).filter(m => m !== null))];
+            
+            const categorias = [...new Set(gastos.map(g => g.categoria).filter(c => c))];
 
-            //reaccion del menu al clik
-            selectMes.onchange = aplicarFiltros;
-            selectCat.onchange = aplicarFiltros;
+            meses.forEach(mes => {
+                opcionesMes.innerHTML += `<span class="custom-option" data-value="${mes}">${mes}</span>`;
+            });
 
+            categorias.forEach(cat => {
+                opcionesCat.innerHTML += `<span class="custom-option" data-value="${cat}">${cat}</span>`;
+            });
+
+            activarMenusDesplegables();
         }
 
-        //funciones de dibujado
+        function activarMenusDesplegables() {
+            const boxes = document.querySelectorAll('.custom-select');
+
+            document.onclick = (e) => {
+                if (!e.target.closest('.custom-select')) {
+                    boxes.forEach(b => b.classList.remove('open'));
+                }
+            };
+
+            boxes.forEach(box => {
+                const trigger = box.querySelector('.select-trigger');
+                const optionsCont = box.querySelector('.custom-options');
+
+                trigger.onclick = (e) => {
+                    e.stopPropagation();
+                    boxes.forEach(b => { if (b !== box) b.classList.remove('open') });
+                    box.classList.toggle('open');
+                };
+
+                optionsCont.onclick = (e) => {
+                    if (e.target.classList.contains('custom-option')) {
+                        const option = e.target;
+                        
+                        box.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
+                        option.classList.add('selected');
+                        
+                        trigger.innerText = option.innerText;
+                        box.classList.remove('open'); 
+
+                        if (box.id === 'box-mes') filtroMesActual = option.dataset.value;
+                        if (box.id === 'box-cat') filtroCatActual = option.dataset.value;
+
+                        aplicarFiltrosPersonalizados();
+                    }
+                };
+            });
+        }
+             
+        function aplicarFiltrosPersonalizados() {
+            if (!window.gastosGlobales) return;
+
+            const filtrados = window.gastosGlobales.filter(g => {
+                let pasaMes = true;
+                let pasaCat = true;
+
+                if (filtroCatActual !== 'TODAS') {
+                    pasaCat = (g.categoria === filtroCatActual);
+                }
+
+                if (filtroMesActual !== 'TODOS' && g.fecha) {
+                    const [mesFiltro, anioFiltro] = filtroMesActual.split('/');
+                    let mesGasto = '', anioGasto = '';
+
+                    if (g.fecha.includes('/')) {
+                        const partes = g.fecha.split('/');
+                        mesGasto = partes[1];
+                        anioGasto = partes[2];
+                    } else if (g.fecha.includes('-')) {
+                        const partes = g.fecha.split('T')[0].split('-');
+                        anioGasto = partes[0];
+                        mesGasto = partes[1];
+                    }
+
+                    pasaMes = (mesGasto === mesFiltro && anioGasto === anioFiltro);
+                }
+
+                return pasaMes && pasaCat;
+            });
+
+            renderizarDashboard(filtrados);
+        }
+        
+
+           
         //actualiza todo junto 
         function renderizarDashboard(gastosParaMostrar) {
             actualizarTabla(gastosParaMostrar);
@@ -601,6 +750,25 @@
             }
         }
 
+        async function borrarTodosLosGastos() {
+            // confirmación de seguridad
+            const seguro = confirm("⚠️ ¿Estás seguro de que quieres borrar TODOS los gastos? Esta acción vaciará la base de datos y no se puede deshacer.");
+            if (!seguro) return;
+
+            try {
+                const res = await fetch('/api/gastos/borrarTodo', { method: 'DELETE' });
+                
+                if (res.ok) {
+                    window.gastosGlobales = [];
+                    await cargarDatos(); 
+                    alert("✅ Base de datos vaciada correctamente. Ya puedes subir un nuevo PDF.");
+                } else {
+                    alert("❌ Hubo un problema al intentar borrar los datos.");
+                }
+            } catch (error) {
+                console.error("Error al borrar:", error);
+            }
+        }
 
         //iniciar
         cargarDatos();

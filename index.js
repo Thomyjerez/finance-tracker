@@ -220,6 +220,19 @@ app.get('/api/gastos', async (req, res) => {
     res.json(gastos);
 });
 
+app.delete('/api/gastos/borrarTodo', async (req, res) => {
+    try {
+        await Gasto.destroy({ 
+            where: {}, 
+            truncate: true 
+        }); 
+        res.json({ mensaje: "Todos los datos fueron borrados con éxito" });
+    } catch (error) {
+        console.error('Error al borrar los datos:', error);
+        res.status(500).json({ error: 'Error interno al borrar la base de datos' });
+    }
+});
+
 async function iniciarServidor() {
     try {
         console.log("Iniciando base de datos...");
