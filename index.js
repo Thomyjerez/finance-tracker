@@ -233,6 +233,23 @@ app.delete('/api/gastos/borrarTodo', async (req, res) => {
     }
 });
 
+// ruta para borrar un gasto individual por su id
+app.delete('/api/gastos/:id', async (req, res) => {
+    try {
+        const idGasto = req.params.id;
+        
+        // buscamos y destruimos solo el registro con ese id
+        await Gasto.destroy({ 
+            where: { id: idGasto } 
+        }); 
+        
+        res.json({ mensaje: "Movimiento eliminado con éxito" });
+    } catch (error) {
+        console.error('Error al borrar movimiento individual:', error);
+        res.status(500).json({ error: 'Error interno al borrar el registro' });
+    }
+});
+
 async function iniciarServidor() {
     try {
         console.log("Iniciando base de datos...");

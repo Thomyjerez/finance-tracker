@@ -10,12 +10,12 @@
        /* --- ESTILOS MODO NOCTURNO VIOLETA --- */
         :root {
             --primary: #6c5ce7; 
-            --primary-hover: #574b90; /* tono  profundo para hover */
-            --bg: #0f172a; /* fondo casi negro */
-            --card: #1e293b; /* gris oscuro para las tarjetas */
-            --text: #f8fafc; /* texto blanco */
-            --text-muted: #94a3b8; /* texto gris claro */
-            --border: #334155; /* bordes oscuros */
+            --primary-hover: #574b90; 
+            --bg: #0f172a; 
+            --card: #1e293b; 
+            --text: #f8fafc; 
+            --text-muted: #94a3b8; 
+            --border: #334155; 
         }
 
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
@@ -183,7 +183,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>💸 Finance Tracker</h1>
+            <h1>Finance Tracker</h1>
         </header>
 
         <div class="upload-card">
@@ -198,7 +198,6 @@
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 <button id="uploadBtn" onclick="subirArchivo()">🚀 Analizar Resumen</button>
                 <button onclick="abrirModalManual()" style="background-color: #0ca06f;">➕ Agregar Gasto Manual</button>
-                <button onclick="borrarTodosLosGastos()" style="background-color: #ef4444; color: white;">🗑️ Borrar Todos los Datos</button>
             </div>
         </div>
         <div class="filter-section">
@@ -213,7 +212,7 @@
             </div>
 
             <div class="custom-dropdown-container">
-                <label>🏷️ Categoría:</label>
+                <label>Categoría:</label>
                 <div class="custom-select" id="box-cat">
                     <div class="select-trigger" id="trigger-cat">Todas las categorías</div>
                     <div class="custom-options" id="opciones-cat">
@@ -266,7 +265,7 @@
     </div>
     <div id="edicionLibreModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <h3>📝 Editar Gasto</h3>
+            <h3>Editar Gasto</h3>
             <input type="hidden" id="editGastoId">
             
             <div class="modal-form-group">
@@ -282,9 +281,13 @@
                 <input type="text" id="editGastoCat" list="listaCategorias" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box;">
             </div>
 
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="cerrarEdicionLibre()">Cancelar</button>
-                <button id="btnGuardarEdicion" onclick="guardarEdicionLibre()">Guardar</button>
+            <div class="modal-actions" style="display: flex; justify-content: space-between; width: 100%;">
+                <button id="btnBorrarIndividual" onclick="borrarGastoIndividual()" style="background-color: #ef4444; color: white; font-weight: bold;">Borrar</button>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-cancel" onclick="cerrarEdicionLibre()">Cancelar</button>
+                    <button id="btnGuardarEdicion" onclick="guardarEdicionLibre()">Guardar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -344,7 +347,7 @@
     document.getElementById('archivoInput').addEventListener('change', function() {
         const nameSpan = document.getElementById('fileName');
         if (this.files && this.files.length > 0) {
-            nameSpan.textContent = "📄 " + this.files[0].name;
+            nameSpan.textContent = "📄" + this.files[0].name;
             nameSpan.style.color = "#10b981"; // verde cuando hay archivo
             nameSpan.style.fontWeight = "bold";
         } else {
@@ -359,7 +362,7 @@
             const input = document.getElementById('archivoInput');
             const btn = document.getElementById('uploadBtn');
 
-            if (!input.files[0]) return mostrarAlerta("⚠️ Por favor selecciona un archivo.", true);
+            if (!input.files[0]) return mostrarAlerta(" Por favor selecciona un archivo.", true);
 
             const formData = new FormData();
             formData.append('archivo', input.files[0]);
@@ -565,13 +568,13 @@
         // motor de colores
         function obtenerColorCategoria(categoria) {
             const coloresBase = {
-                'Supermercado': '#d9f99d', // verde suave
-                'Transporte': '#bae6fd',   // celeste suave
-                'Comida': '#fdba74',       // naranja cálido (durazno)
-                'Suscripciones': '#d8b4fe',// lila suave
-                'Impuestos': '#fde047',    // amarillo pastel
-                'Varios': '#94a3b8',       // gris azulado
-                'MercadoPago/Compra': '#f9a8d4' // rosa suave
+                'Supermercado': '#d9f99d', // verde 
+                'Transporte': '#bae6fd',   // celeste 
+                'Comida': '#fdba74',       // naranja  
+                'Suscripciones': '#d8b4fe',// lila 
+                'Impuestos': '#fde047',    // amarillo 
+                'Varios': '#94a3b8',       // gris 
+                'MercadoPago/Compra': '#f9a8d4' // rosa 
             };
             if (coloresBase[categoria]) return coloresBase[categoria];
 
@@ -678,7 +681,7 @@
             const categoria = document.getElementById('manualCat').value;
 
             if (!descripcion || !monto) {
-                return mostrarAlerta("⚠️ Por favor ingresa una descripción y un monto.", true);
+                return mostrarAlerta("Por favor ingresa una descripción y un monto.", true);
             }
 
             const btn = document.getElementById('btnGuardarManual');
@@ -701,7 +704,7 @@
                 // recarga la tabla para que aparezca el gasto instantáneamente
                 cargarDatos(); 
             } catch (error) {
-                mostrarAlerta("❌ Error al guardar el gasto manual.", true);
+                mostrarAlerta("Error al guardar el gasto manual.", true);
                 console.error(error);
             } finally {
                 btn.innerText = "Guardar";
@@ -728,7 +731,7 @@
             if (!descripcion || !categoria || !monto) return mostrarAlerta("Completa todos los campos.", true);
 
             const btn = document.getElementById('btnGuardarEdicion');
-            btn.innerText = "⏳ Guardando..."; btn.disabled = true;
+            btn.innerText = "Guardando..."; btn.disabled = true;
 
             try {
                 const respuesta = await fetch(`/api/gastos/${id}`, {
@@ -750,30 +753,103 @@
             }
         }
 
-        async function borrarTodosLosGastos() {
-            // confirmación de seguridad
-            const seguro = confirm("⚠️ ¿Estás seguro de que quieres borrar TODOS los gastos? Esta acción vaciará la base de datos y no se puede deshacer.");
-            if (!seguro) return;
+       function abrirModalBorrarTodo(){
+        document.getElementById('modalBorrarTodo').style.display='none';
+       }
 
-            try {
-                const res = await fetch('/api/gastos/borrarTodo', { method: 'DELETE' });
-                
-                if (res.ok) {
-                    window.gastosGlobales = [];
-                    await cargarDatos(); 
-                    alert("✅ Base de datos vaciada correctamente. Ya puedes subir un nuevo PDF.");
+       function cerrarModalBorrarTodo(){
+        document.getElementById('modalBorrarTodo').style.display='none';
+       }
+
+       async function ejecutarBorradoTotal(){
+        const btn= document.querySelector('#modalBorrarTodo button[style*="background-color: #ef4444"]');
+        const textoOriginal= btn.innerText;
+        btn.innerText="Borrando...";
+        btn.disabled=true;
+
+        try{
+            const res= await fetch ('/api/gastos/borrarTodo', { method: 'DELETE' })
+
+            if (!res.ok){
+                window.gastosGlobales=[];
+                await cargarDatos();
+                cerrarModalBorrarTodo();
+                mostrarAlerta("Base de datos reiniciada correctamente");
+            }else{
+                mostrarAlerta("Hubo un problema al intentar borrar", true)
+            }
+        }catch(error){
+            console.error("Error al borrar", error)
+            mostrarAlerta("Error al conectar con el servidor.",true)
+        }finally{
+            btn.innerText= textoOriginal;
+            btn.disabled=false;
+        }
+       }
+
+       async function borrarGastoIndividual(){
+        const idGasto = document.getElementById('editGastoId').value;
+        if(!idGasto) return;
+
+        const btn= document.getElementById('btnBorrarIndividual');
+
+        if (btn.innerText==="Borrar"){
+            btn.innerText ="¿Seguro? Click para confirmar";
+            btn.style.backgroundColor= "#991b1b";
+
+            setTimeout(()=>{
+                if(btn.innerText !=="Borrando..."){
+                    btn.innerText = "Borrar";
+                    btn.style.backgroundColor = "#ef4444"
+                }
+            },3000)
+            return;
+       }
+       btn.innerText ="Borrando..."
+       btn.disabled=true;
+
+       try{
+        //para que el servidor borre este id
+        const res= await fetch(`/api/gastos/${idGasto}`, { method: 'DELETE' });
+        if (res.ok) {
+                    cerrarEdicionLibre();
+                    await cargarDatos(); // Recargamos la tabla
+                    mostrarAlerta("Movimiento eliminado");
+                    
+                    // Restauramos el botón para la próxima vez
+                    btn.innerText = "Borrar";
+                    btn.style.backgroundColor = "#ef4444";
+                    btn.disabled = false;
                 } else {
-                    alert("❌ Hubo un problema al intentar borrar los datos.");
+                    mostrarAlerta("Error al borrar", true);
                 }
             } catch (error) {
-                console.error("Error al borrar:", error);
+                console.error(error);
+                mostrarAlerta("Error de conexión", true);
             }
-        }
-
+       }
+    
         //iniciar
         cargarDatos();
 
     </script>
+    <div style ="text-align: center; margin:30px 0; padding-bottom:20px;">
+        <span onclick="abrirModalBorrarTodo()" style="color: #475569;font-size:0.85em; cursor: pointer; text-decoration: underline; transition: 0.3s;"onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#475569'">
+             Zona de Peligro: Reiniciar base de datos
+        </span>
+    </div>
+    <div id="modalBorrarTodo" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="border-top: 4px solid #ef4444;">
+            <h3 style="color: #ef4444; margin-bottom: 10px;">Vaciar Base de Datos</h3>
+            <p style="color: #94a3b8; margin-bottom: 25px; font-size: 0.95em; line-height: 1.5;">
+                ¿Estás completamente seguro? Esta acción eliminará <strong>todos</strong> los movimientos de tu cuenta. Esta acción no se puede deshacer.
+            </p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="cerrarModalBorrarTodo()">Cancelar</button>
+                <button onclick="ejecutarBorradoTotal()" style="background-color: #ef4444; color: white; font-weight: bold;">Sí, vaciar todo</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
